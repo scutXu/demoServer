@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>three.ar.js - Anchors</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no,
+  minimum-scale=1.0, maximum-scale=1.0">
+  <style>
+    body {
+      font-family: monospace;
+      margin: 0;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100vh;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+<script src="../libs/three.js/three.min.js"></script>
+<script src="../libs/three.js/controls/VRControls.js"></script>
+<script src="../libs/three.ar.js/three.ar.min.js"></script>
+<script src="../libs/three.js/loaders/ColladaLoader.js"></script>
+<script>
+
+var vrDisplay;
+var vrFrameData;
+var vrControls;
+var arView;
+
+var canvas;
+var camera;
+var scene;
+var renderer;
+var mixer;
+var clock;
+
+
+THREE.ARUtils.getARDisplay().then(function (display) {
+  if (display) {
+    vrFrameData = new VRFrameData();
+    vrDisplay = display;
+    init();
+  } else {
+    THREE.ARUtils.displayUnsupportedMessage();
+  }
+});
+
+function init() {
+  renderer = new THREE.WebGLRenderer({ alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  console.log('setRenderer size', window.innerWidth, window.innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.autoClear = false;
+  canvas = renderer.domElement;
+  document.body.appendChild(canvas);
+  scene = new THREE.Scene();
+
+  var loader = new THREE.ColladaLoader();
+  loader.load( './stormtrooper.dae', function ( collada ) {
+
+    var animations = collada.animations;
+    var avatar = collada.scene;
+
+    mixer = new THREE.AnimationMixer( avatar );
+    var action = mixer.clipAction( animations[ 0 ] ).play();
+
+    avatar.scale.x = 0.01;
+    avatar.scale.y = 0.01;
+    avatar.scale.z = 0.01;
+    scene.add( avatar );
+
+  } );
+
+    var ambientLight = new THREE.AmbientLight( 0xffffff, 0.2 );
+    scene.add( ambientLight );
+
+    var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.8 );
+    directionalLight.position.set( 1, 1, - 1 );
+    scene.add( directionalLight );
+
+  arView = new THREE.ARView(vrDisplay, renderer);
+
+  camera = new THREE.ARPerspectiveCamera(
+    vrDisplay,
+    60,
+    window.innerWidth / window.innerHeight,
+    vrDisplay.depthNear,
+    vrDisplay.depthFar
+  );
+
+  vrControls = new THREE.VRControls(camera);
+
+  window.addEventListener('resize', onWindowResize, false);
+
+  clock = new THREE.Clock();
+
+  update();
+}
+
+function update() {
+  var delta = clock.getDelta();
+
+  if ( mixer !== undefined ) {
+
+    mixer.update( delta );
+
+  }
+
+  renderer.clearColor();
+  
+  arView.render();
+
+  camera.updateProjectionMatrix();
+
+  vrDisplay.getFrameData(vrFrameData);
+
+  vrControls.update();
+
+  renderer.clearDepth();
+  renderer.render(scene, camera);
+
+  requestAnimationFrame(update);
+}
+
+function onWindowResize () {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+
+
+</script>
+</body>
+</html>
